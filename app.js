@@ -54,6 +54,11 @@ const saveScheduleButton =
 const playerList =
   document.getElementById("playerList");
 
+const customerList =
+  document.getElementById("customerList");
+
+const newCustomerButton =
+  document.getElementById("newCustomerButton");
 
 /* ========================================
    INITIALIZE
@@ -64,6 +69,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupNavigation();
   setupContentEditors();
   setupScheduleEvents();
+  setupCustomerEvents();
 
   const {
     data: { session }
@@ -144,7 +150,6 @@ function showLogin() {
 
 
 async function enterCMS(user) {
-
   currentUser = user;
 
   loginScreen.classList.add("hidden");
@@ -152,9 +157,35 @@ async function enterCMS(user) {
 
   loginUser.textContent = user.email || "";
 
-  await loadSites();
-  await loadPlayers();
+  // 로그인 계정의 권한 확인
+  const { data: profile, error: profileError } = await supabaseClient
+    .from("v4_profiles")
+    .select("role, is_active")
+    .eq("user_id", user.id)
+    .single();
 
+  if (profileError || !profile || !profile.is_active) {
+    console.error("Profile error:", profileError);
+    alert("アカウント情報を確認できません。");
+    await supabaseClient.auth.signOut();
+    showLogin();
+    return;
+  }
+
+  currentUser.role = profile.role;
+
+  // 관리자 전용 메뉴 표시/숨김
+  document.querySelectorAll(".admin-only").forEach((element) => {
+    element.style.display =
+      profile.role === "admin" ? "" : "none";
+  });
+
+  await loadSites();
+
+  // 플레이어 관리는 관리자만 불러오기
+  if (profile.role === "admin") {
+    await loadPlayers();
+  }
 }
 
 
