@@ -57,23 +57,27 @@
         <span>Touch V4</span>
       </div>
 
-      <nav>
-        <button class="nav-button active" data-page="sites">
-          現場管理
-        </button>
+     <nav>
+  <button class="nav-button active" data-page="sites">
+    現場管理
+  </button>
 
-        <button class="nav-button" data-page="content">
-          コンテンツ管理
-        </button>
+  <button class="nav-button" data-page="content">
+    コンテンツ管理
+  </button>
 
-        <button class="nav-button" data-page="schedule">
-          週間工程
-        </button>
+  <button class="nav-button" data-page="schedule">
+    週間工程
+  </button>
 
-        <button class="nav-button" data-page="players">
-          プレイヤー管理
-        </button>
-      </nav>
+  <button class="nav-button" data-page="players">
+    プレイヤー管理
+  </button>
+
+  <button class="nav-button admin-only" data-page="customers">
+    顧客管理
+  </button>
+</nav>
 
       <button id="logoutButton" class="logout-button">
         ログアウト
@@ -305,7 +309,23 @@
         <div id="playerList" class="player-list"></div>
 
       </section>
+      <!-- 顧客管理 -->
+      <section id="page-customers" class="page">
+        <div class="section-header">
+          <div>
+            <h2>顧客管理</h2>
+            <p>顧客アカウントの作成・編集・削除、担当現場の設定を行います。</p>
+          </div>
 
+          <button id="newCustomerButton" class="primary-button">
+            ＋ 新規顧客
+          </button>
+        </div>
+
+        <div id="customerList" class="customer-list">
+          <!-- 顧客アカウント一覧をここに表示 -->
+        </div>
+      </section>
     </main>
 
   </div>
