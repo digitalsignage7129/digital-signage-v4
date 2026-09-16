@@ -220,11 +220,12 @@ function setupNavigation() {
       }
 
       const titles = {
-        sites: "現場管理",
-        content: "コンテンツ管理",
-        schedule: "週間工程",
-        players: "プレイヤー管理"
-      };
+  sites: "現場管理",
+  content: "コンテンツ管理",
+  schedule: "週間工程",
+  players: "プレイヤー管理",
+  customers: "顧客管理"
+};
 
       pageTitle.textContent =
         titles[targetPage] || "";
@@ -245,6 +246,9 @@ function setupNavigation() {
         await loadPlayers();
       }
 
+       if (targetPage === "customers") {
+  await loadCustomers();
+}
     });
 
   });
@@ -2234,4 +2238,579 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 
+}
+
+/* =========================================
+   CUSTOMER MANAGEMENT
+========================================= */
+
+function setupCustomerEvents() {
+  if (newCustomerButton) {
+    newCustomerButton.addEventListener("click", () => {
+      openCustomerModal();
+    });
+  }
+}
+
+async function loadCustomers() {
+  if (!customerList || currentUser?.role !== "admin") {
+    return;
+  }
+
+  customerList.innerHTML = `
+    <div class="empty-state">
+      読み込み中...
+    </div>
+  `;
+
+  const { data: customers, error } = await supabaseClient
+    .from("v4_profiles")
+    .select(`
+      user_id,
+      email,
+      display_name,
+      role,
+      is_active,
+      created_at
+    `)
+    .eq("role", "customer")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Customer load error:", error);
+
+    customerList.innerHTML = `
+      <div class="empty-state">
+        顧客情報を読み込めませんでした。
+      </div>
+    `;
+    return;
+  }
+
+  if (!customers || customers.length === 0) {
+    customerList.innerHTML = `
+      <div class="empty-state">
+        まだ顧客アカウントがありません。
+      </div>
+    `;
+    return;
+  }
+
+  const { data: userSites, error: siteError } = await supabaseClient
+    .from("v4_user_sites")
+    .select(`
+      user_id,
+      site_id,
+      v4_sites (
+        id,
+        site_name
+      )
+    `);
+
+  if (siteError) {
+    console.error("Customer site load error:", siteError);
+  }
+
+  customerList.innerHTML = "";
+
+  customers.forEach((customer) => {
+    const assignedSites = (userSites || [])
+      .filter((item) => item.user_id === customer.user_id)
+      .map((item) => item.v4_sites)
+      .filter(Boolean);
+
+    const card = document.createElement("div");
+    card.className = "customer-card";
+
+    card.innerHTML = `
+      <div class="customer-info">
+
+        <h3>
+          ${escapeHtml(customer.display_name || "名称未設定")}
+        </h3>
+
+        <p class="customer-email">
+          ${escapeHtml(customer.email || "")}
+        </p>
+
+        <div class="customer-sites">
+          ${
+            assignedSites.length
+              ? assignedSites
+                  .map(
+                    (site) => `
+                      <span class="customer-site-badge">
+                        ${escapeHtml(site.site_name)}
+                      </span>
+                    `
+                  )
+                  .join("")
+              : `
+                  <span class="customer-site-badge">
+                    担当現場なし
+                  </span>
+                `
+          }
+        </div>
+
+      </div>
+
+      <div class="customer-actions">
+
+        <span class="customer-status ${
+          customer.is_active ? "" : "inactive"
+        }">
+          ${customer.is_active ? "有効" : "無効"}
+        </span>
+
+        <button
+          class="customer-action-button edit-customer-button"
+          data-user-id="${customer.user_id}"
+        >
+          編集
+        </button>
+
+        <button
+          class="customer-action-button reset-password-button"
+          data-user-id="${customer.user_id}"
+        >
+          パスワード再設定
+        </button>
+
+        <button
+          class="customer-action-button danger delete-customer-button"
+          data-user-id="${customer.user_id}"
+        >
+          削除
+        </button>
+
+      </div>
+    `;
+
+    customerList.appendChild(card);
+  });
+
+  setupCustomerCardEvents(customers, userSites || []);
+}
+function openCustomerModal() {
+  const overlay = document.createElement("div");
+  overlay.className = "customer-modal-overlay";
+
+  const siteOptions = (sites || [])
+    .map(
+      (site) => `
+        <label class="customer-site-option">
+          <input
+            type="checkbox"
+            class="customer-site-checkbox"
+            value="${site.id}"
+          >
+          <span>${escapeHtml(site.site_name)}</span>
+        </label>
+      `
+    )
+    .join("");
+
+  overlay.innerHTML = `
+    <div class="customer-modal">
+      <h2>新規顧客アカウント</h2>
+
+      <label>顧客名</label>
+      <input
+        type="text"
+        id="customerDisplayName"
+        placeholder="例：株式会社〇〇"
+      >
+
+      <label>ログインメールアドレス</label>
+      <input
+        type="email"
+        id="customerEmail"
+        placeholder="example@company.co.jp"
+      >
+
+      <label>初期パスワード</label>
+      <input
+        type="password"
+        id="customerPassword"
+        placeholder="6文字以上"
+      >
+
+      <label>担当現場</label>
+
+      <div class="customer-site-options">
+        ${
+          siteOptions ||
+          `<p>登録されている現場がありません。</p>`
+        }
+      </div>
+
+      <div class="customer-modal-actions">
+        <button
+          type="button"
+          class="secondary-button"
+          id="cancelCustomerButton"
+        >
+          キャンセル
+        </button>
+
+        <button
+          type="button"
+          class="primary-button"
+          id="createCustomerButton"
+        >
+          顧客を作成
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  document
+    .getElementById("cancelCustomerButton")
+    .addEventListener("click", () => {
+      overlay.remove();
+    });
+
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) {
+      overlay.remove();
+    }
+  });
+
+  document
+    .getElementById("createCustomerButton")
+    .addEventListener("click", async () => {
+      await createCustomer(overlay);
+    });
+}
+
+
+async function createCustomer(overlay) {
+  const displayName =
+    document.getElementById("customerDisplayName").value.trim();
+
+  const email =
+    document.getElementById("customerEmail").value.trim();
+
+  const password =
+    document.getElementById("customerPassword").value;
+
+  const siteIds = Array.from(
+    document.querySelectorAll(
+      ".customer-site-checkbox:checked"
+    )
+  ).map((checkbox) => checkbox.value);
+
+  if (!displayName) {
+    alert("顧客名を入力してください。");
+    return;
+  }
+
+  if (!email) {
+    alert("メールアドレスを入力してください。");
+    return;
+  }
+
+  if (password.length < 6) {
+    alert("パスワードは6文字以上で入力してください。");
+    return;
+  }
+
+  const button =
+    document.getElementById("createCustomerButton");
+
+  button.disabled = true;
+  button.textContent = "作成中...";
+
+  try {
+    const { data, error } =
+      await supabaseClient.functions.invoke(
+        "v4-customer-admin",
+        {
+          body: {
+            action: "create",
+            display_name: displayName,
+            email: email,
+            password: password,
+            site_ids: siteIds,
+          },
+        }
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    if (data?.error) {
+      throw new Error(data.error);
+    }
+
+    overlay.remove();
+
+    await loadCustomers();
+
+    alert("顧客アカウントを作成しました。");
+  } catch (error) {
+    console.error("Create customer error:", error);
+
+    alert(
+      error?.message ||
+      "顧客アカウントを作成できませんでした。"
+    );
+
+    button.disabled = false;
+    button.textContent = "顧客を作成";
+  }
+}
+
+function setupCustomerCardEvents(customers, userSites) {
+  document.querySelectorAll(".edit-customer-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      const userId = button.dataset.userId;
+      const customer = customers.find((item) => item.user_id === userId);
+
+      if (!customer) return;
+
+      const assignedSiteIds = userSites
+        .filter((item) => item.user_id === userId)
+        .map((item) => item.site_id);
+
+      openEditCustomerModal(customer, assignedSiteIds);
+    });
+  });
+
+  document.querySelectorAll(".reset-password-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      resetCustomerPassword(button.dataset.userId);
+    });
+  });
+
+  document.querySelectorAll(".delete-customer-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      deleteCustomer(button.dataset.userId);
+    });
+  });
+}
+
+
+function openEditCustomerModal(customer, assignedSiteIds) {
+  const overlay = document.createElement("div");
+  overlay.className = "customer-modal-overlay";
+
+  const siteOptions = (sites || [])
+    .map(
+      (site) => `
+        <label class="customer-site-option">
+          <input
+            type="checkbox"
+            class="edit-customer-site-checkbox"
+            value="${site.id}"
+            ${assignedSiteIds.includes(site.id) ? "checked" : ""}
+          >
+          <span>${escapeHtml(site.site_name)}</span>
+        </label>
+      `
+    )
+    .join("");
+
+  overlay.innerHTML = `
+    <div class="customer-modal">
+      <h2>顧客アカウント編集</h2>
+
+      <label>顧客名</label>
+      <input
+        type="text"
+        id="editCustomerDisplayName"
+        value="${escapeHtml(customer.display_name || "")}"
+      >
+
+      <label>ログインメールアドレス</label>
+      <input
+        type="email"
+        id="editCustomerEmail"
+        value="${escapeHtml(customer.email || "")}"
+      >
+
+      <label>担当現場</label>
+
+      <div class="customer-site-options">
+        ${
+          siteOptions ||
+          `<p>登録されている現場がありません。</p>`
+        }
+      </div>
+
+      <div class="customer-modal-actions">
+        <button
+          type="button"
+          class="secondary-button"
+          id="cancelEditCustomerButton"
+        >
+          キャンセル
+        </button>
+
+        <button
+          type="button"
+          class="primary-button"
+          id="saveEditCustomerButton"
+        >
+          保存
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  document
+    .getElementById("cancelEditCustomerButton")
+    .addEventListener("click", () => overlay.remove());
+
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) {
+      overlay.remove();
+    }
+  });
+
+  document
+    .getElementById("saveEditCustomerButton")
+    .addEventListener("click", async () => {
+      const displayName = document
+        .getElementById("editCustomerDisplayName")
+        .value.trim();
+
+      const email = document
+        .getElementById("editCustomerEmail")
+        .value.trim();
+
+      const siteIds = Array.from(
+        document.querySelectorAll(
+          ".edit-customer-site-checkbox:checked"
+        )
+      ).map((checkbox) => checkbox.value);
+
+      if (!displayName || !email) {
+        alert("顧客名とメールアドレスを入力してください。");
+        return;
+      }
+
+      const saveButton =
+        document.getElementById("saveEditCustomerButton");
+
+      saveButton.disabled = true;
+      saveButton.textContent = "保存中...";
+
+      try {
+        const { data, error } =
+          await supabaseClient.functions.invoke(
+            "v4-customer-admin",
+            {
+              body: {
+                action: "update",
+                user_id: customer.user_id,
+                display_name: displayName,
+                email: email,
+                site_ids: siteIds,
+              },
+            }
+          );
+
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+
+        overlay.remove();
+        await loadCustomers();
+
+        alert("顧客情報を更新しました。");
+      } catch (error) {
+        console.error("Update customer error:", error);
+
+        alert(
+          error?.message ||
+          "顧客情報を更新できませんでした。"
+        );
+
+        saveButton.disabled = false;
+        saveButton.textContent = "保存";
+      }
+    });
+}
+
+
+async function resetCustomerPassword(userId) {
+  const newPassword = prompt(
+    "新しいパスワードを入力してください。\n（6文字以上）"
+  );
+
+  if (newPassword === null) return;
+
+  if (newPassword.length < 6) {
+    alert("パスワードは6文字以上で入力してください。");
+    return;
+  }
+
+  try {
+    const { data, error } =
+      await supabaseClient.functions.invoke(
+        "v4-customer-admin",
+        {
+          body: {
+            action: "reset_password",
+            user_id: userId,
+            new_password: newPassword,
+          },
+        }
+      );
+
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+
+    alert("パスワードを変更しました。");
+  } catch (error) {
+    console.error("Reset password error:", error);
+
+    alert(
+      error?.message ||
+      "パスワードを変更できませんでした。"
+    );
+  }
+}
+
+
+async function deleteCustomer(userId) {
+  const confirmed = confirm(
+    "この顧客アカウントを削除しますか？\n\n" +
+    "顧客アカウントは削除されますが、現場・コンテンツ・週間工程のデータは削除されません。"
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const { data, error } =
+      await supabaseClient.functions.invoke(
+        "v4-customer-admin",
+        {
+          body: {
+            action: "delete",
+            user_id: userId,
+          },
+        }
+      );
+
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+
+    await loadCustomers();
+
+    alert("顧客アカウントを削除しました。");
+  } catch (error) {
+    console.error("Delete customer error:", error);
+
+    alert(
+      error?.message ||
+      "顧客アカウントを削除できませんでした。"
+    );
+  }
 }
