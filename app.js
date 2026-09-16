@@ -173,7 +173,9 @@ async function enterCMS(user) {
   }
 
   currentUser.role = profile.role;
-
+newSiteButton.style.display =
+  profile.role === "admin" ? "" : "none";
+   
   // 관리자 전용 메뉴 표시/숨김
   document.querySelectorAll(".admin-only").forEach((element) => {
     element.style.display =
