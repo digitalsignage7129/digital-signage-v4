@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Digital Signage Touch V4 | CMS</title>
+
+  <link rel="stylesheet" href="styles.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+
+  <!-- =========================
+       LOGIN
+  ========================== -->
+  <section id="loginScreen" class="login-screen">
+
+    <div class="login-box">
+      <h1>Digital Signage Touch</h1>
+      <p>V4 Management System</p>
+
+      <input
+        type="email"
+        id="loginEmail"
+        placeholder="メールアドレス"
+      >
+
+      <input
+        type="password"
+        id="loginPassword"
+        placeholder="パスワード"
+      >
+
+      <button id="loginButton">
+        ログイン
+      </button>
+
+      <p id="loginMessage"></p>
+    </div>
+
+  </section>
+
+
+  <!-- =========================
+       CMS
+  ========================== -->
+  <div id="cmsScreen" class="cms-screen hidden">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+      <div class="sidebar-logo">
+        <strong>Digital Signage</strong>
+        <span>Touch V4</span>
+      </div>
+
+      <nav>
+        <button class="nav-button active" data-page="sites">
+          現場管理
+        </button>
+
+        <button class="nav-button" data-page="content">
+          コンテンツ管理
+        </button>
+
+        <button class="nav-button" data-page="schedule">
+          週間工程
+        </button>
+
+        <button class="nav-button" data-page="players">
+          プレイヤー管理
+        </button>
+      </nav>
+
+      <button id="logoutButton" class="logout-button">
+        ログアウト
+      </button>
+
+    </aside>
+
+
+    <!-- MAIN -->
+    <main class="main">
+
+      <header class="topbar">
+
+        <div>
+          <h1 id="pageTitle">現場管理</h1>
+          <p>Digital Signage Touch V4</p>
+        </div>
+
+        <div id="loginUser" class="login-user"></div>
+
+      </header>
+
+
+      <!-- =========================
+           SITE MANAGEMENT
+      ========================== -->
+      <section id="page-sites" class="page active">
+
+        <div class="section-header">
+          <div>
+            <h2>現場管理</h2>
+            <p>ゼネコン情報・現場情報・表示設定を管理します。</p>
+          </div>
+
+          <button id="newSiteButton" class="primary-button">
+            ＋ 新規現場
+          </button>
+        </div>
+
+        <div id="siteList" class="card-grid"></div>
+
+      </section>
+
+
+      <!-- =========================
+           CONTENT MANAGEMENT
+      ========================== -->
+      <section id="page-content" class="page">
+
+        <div class="section-header">
+          <div>
+            <h2>コンテンツ管理</h2>
+            <p>
+              3つの自由メニューに画像・動画・PDF・Webページを設定できます。
+            </p>
+          </div>
+        </div>
+
+        <div class="site-selector">
+          <label>対象現場</label>
+          <select id="contentSiteSelect"></select>
+        </div>
+
+
+        <div class="content-menu-grid">
+
+          <!-- MENU 1 -->
+          <article class="content-editor" data-position="1">
+
+            <div class="menu-number">MENU 01</div>
+
+            <label>メニュー名</label>
+            <input
+              type="text"
+              class="menu-title"
+              placeholder="例：現場案内"
+            >
+
+            <label>コンテンツタイプ</label>
+            <select class="content-type">
+              <option value="image">画像</option>
+              <option value="video">動画</option>
+              <option value="pdf">PDF</option>
+              <option value="url">Webページ（URL）</option>
+            </select>
+
+            <div class="content-input-area"></div>
+
+            <button class="save-menu-button primary-button">
+              保存
+            </button>
+
+          </article>
+
+
+          <!-- MENU 2 -->
+          <article class="content-editor" data-position="2">
+
+            <div class="menu-number">MENU 02</div>
+
+            <label>メニュー名</label>
+            <input
+              type="text"
+              class="menu-title"
+              placeholder="例：安全情報"
+            >
+
+            <label>コンテンツタイプ</label>
+            <select class="content-type">
+              <option value="image">画像</option>
+              <option value="video">動画</option>
+              <option value="pdf">PDF</option>
+              <option value="url">Webページ（URL）</option>
+            </select>
+
+            <div class="content-input-area"></div>
+
+            <button class="save-menu-button primary-button">
+              保存
+            </button>
+
+          </article>
+
+
+          <!-- MENU 3 -->
+          <article class="content-editor" data-position="3">
+
+            <div class="menu-number">MENU 03</div>
+
+            <label>メニュー名</label>
+            <input
+              type="text"
+              class="menu-title"
+              placeholder="例：お知らせ"
+            >
+
+            <label>コンテンツタイプ</label>
+            <select class="content-type">
+              <option value="image">画像</option>
+              <option value="video">動画</option>
+              <option value="pdf">PDF</option>
+              <option value="url">Webページ（URL）</option>
+            </select>
+
+            <div class="content-input-area"></div>
+
+            <button class="save-menu-button primary-button">
+              保存
+            </button>
+
+          </article>
+
+        </div>
+
+      </section>
+
+
+      <!-- =========================
+           WEEKLY SCHEDULE
+      ========================== -->
+      <section id="page-schedule" class="page">
+
+        <div class="section-header">
+          <div>
+            <h2>週間工程</h2>
+            <p>
+              日付と作業内容を入力します。曜日は自動で表示されます。
+            </p>
+          </div>
+        </div>
+
+        <div class="site-selector">
+          <label>対象現場</label>
+          <select id="scheduleSiteSelect"></select>
+        </div>
+
+
+        <div class="schedule-editor">
+
+          <div class="schedule-table-header">
+            <div>日付</div>
+            <div>曜日</div>
+            <div>作業内容</div>
+          </div>
+
+          <div id="scheduleRows"></div>
+
+          <button id="addScheduleRowButton" class="secondary-button">
+            ＋ 行を追加
+          </button>
+
+          <div class="ticker-editor">
+            <label>テロップ・お知らせ</label>
+
+            <textarea
+              id="tickerText"
+              rows="3"
+              placeholder="例：本日は大型車両の搬入があります。ご注意ください。"
+            ></textarea>
+
+            <p>
+              入力した文章はサイネージ画面下部を右から左へ流れます。
+            </p>
+          </div>
+
+          <button id="saveScheduleButton" class="primary-button">
+            週間工程・テロップを保存
+          </button>
+
+        </div>
+
+      </section>
+
+
+      <!-- =========================
+           PLAYER MANAGEMENT
+      ========================== -->
+      <section id="page-players" class="page">
+
+        <div class="section-header">
+          <div>
+            <h2>プレイヤー管理</h2>
+            <p>
+              サイネージ端末の登録コードと現場の紐付けを行います。
+            </p>
+          </div>
+        </div>
+
+        <div id="playerList" class="player-list"></div>
+
+      </section>
+
+    </main>
+
+  </div>
+
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+
+</body>
+</html>
