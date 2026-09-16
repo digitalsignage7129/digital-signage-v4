@@ -923,7 +923,14 @@ function setupContentEditors() {
       .addEventListener(
         "click",
         async () => {
+          await saveContentMenu(editor);
 
+        }
+      );
+
+  });
+
+}
          async function saveContentMenu(editor) {
 
   const siteId =
