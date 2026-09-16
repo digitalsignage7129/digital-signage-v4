@@ -924,203 +924,282 @@ function setupContentEditors() {
         "click",
         async () => {
 
-          await saveContentMenu(editor);
+         async function saveContentMenu(editor) {
 
-        }
-      );
+  const siteId =
+    contentSiteSelect.value;
 
-    renderContentInput(editor);
-
-  });
-
-
-  contentSiteSelect.addEventListener(
-    "change",
-    async () => {
-
-      currentContentSiteId =
-        contentSiteSelect.value;
-
-      await loadContentForSelectedSite();
-
-    }
-  );
-
-}
+  if (!siteId) {
+    alert("対象現場を選択してください。");
+    return;
+  }
 
 
-function renderContentInput(
-  editor,
-  menuData = null
-) {
+  const position =
+    Number(editor.dataset.position);
+
+  const title =
+    editor
+      .querySelector(".menu-title")
+      .value
+      .trim();
 
   const type =
     editor
       .querySelector(".content-type")
       .value;
 
-  const area =
+
+  if (!title) {
+    alert("メニュー名を入力してください。");
+    return;
+  }
+
+
+  const button =
     editor.querySelector(
-      ".content-input-area"
+      ".save-menu-button"
     );
 
-  area.innerHTML = "";
+  button.disabled = true;
+  button.textContent = "保存中...";
 
 
-  /* IMAGE */
+  try {
 
-  if (type === "image") {
+    let fileUrls = [];
 
-    area.innerHTML = `
-      <label style="margin-top:0;">
-        画像
-      </label>
-
-      <input
-        type="file"
-        class="content-files"
-        accept="image/*"
-        multiple
-      >
-
-      <p style="
-        margin-top:8px;
-        color:#74879a;
-        font-size:12px;
-      ">
-        最大5枚まで登録できます。
-        複数画像はサイネージで自動切替されます。
-      </p>
-
-      <div class="image-preview-grid"></div>
-    `;
-
-    const urls =
-      Array.isArray(menuData?.image_urls)
-        ? menuData.image_urls
-        : [];
-
-    const preview =
-      area.querySelector(
-        ".image-preview-grid"
-      );
-
-    urls.forEach(url => {
-
-      const div =
-        document.createElement("div");
-
-      div.className =
-        "image-preview";
-
-      div.innerHTML = `
-        <img
-          src="${escapeHtml(url)}"
-          alt=""
-        >
-      `;
-
-      preview.appendChild(div);
-
-    });
-
-  }
+    try {
+      fileUrls =
+        JSON.parse(
+          editor.dataset.fileUrls ||
+          "[]"
+        );
+    } catch {
+      fileUrls = [];
+    }
 
 
-  /* VIDEO */
+    let webUrl =
+      editor.dataset.webUrl ||
+      null;
 
-  if (type === "video") {
 
-    area.innerHTML = `
-      <label style="margin-top:0;">
-        動画ファイル
-      </label>
+    /* ========================================
+       IMAGE / VIDEO / PDF
+    ======================================== */
 
-      <input
-        type="file"
-        class="content-file"
-        accept="video/*"
-      >
+    if (
+      type === "image" ||
+      type === "video" ||
+      type === "pdf"
+    ) {
 
-      ${
-        menuData?.content_url
-          ? `
-            <p style="
-              margin-top:10px;
-              color:#1769aa;
-              font-size:12px;
-            ">
-              登録済みの動画があります。
-            </p>
-          `
-          : ""
+      const fileInput =
+        editor.querySelector(
+          ".content-files"
+        );
+
+      const newFiles =
+        Array.from(
+          fileInput?.files || []
+        );
+
+
+      /*
+        기존 파일 + 새 파일 합계 최대 5개
+      */
+
+      if (
+        fileUrls.length +
+        newFiles.length >
+        5
+      ) {
+
+        alert(
+          "1メニューにつき最大5ファイルまで登録できます。"
+        );
+
+        button.disabled = false;
+        button.textContent = "保存";
+
+        return;
       }
-    `;
-
-  }
 
 
-  /* PDF */
+      /*
+        기존 파일은 유지하고
+        새 파일만 추가 업로드
+      */
 
-  if (type === "pdf") {
+      for (const file of newFiles) {
 
-    area.innerHTML = `
-      <label style="margin-top:0;">
-        PDFファイル
-      </label>
+        const url =
+          await uploadFile(
+            file,
+            `${siteId}/menu${position}/${type}`
+          );
 
-      <input
-        type="file"
-        class="content-file"
-        accept="application/pdf"
-      >
+        fileUrls.push(url);
 
-      ${
-        menuData?.content_url
-          ? `
-            <p style="
-              margin-top:10px;
-              color:#1769aa;
-              font-size:12px;
-            ">
-              登録済みのPDFがあります。
-            </p>
-          `
-          : ""
       }
-    `;
-
-  }
 
 
-  /* URL */
+      webUrl = null;
 
-  if (type === "url") {
+    }
 
-    area.innerHTML = `
-      <label style="margin-top:0;">
-        Webページ URL
-      </label>
 
-      <input
-        type="url"
-        class="web-url"
-        placeholder="https://example.com"
-        value="${
-          escapeHtml(
-            menuData?.web_url || ""
-          )
-        }"
-      >
+    /* ========================================
+       URL
+    ======================================== */
 
-      <p style="
-        margin-top:8px;
-        color:#74879a;
-        font-size:12px;
-      ">
-        サイネージではWebページとして表示されます。
-      </p>
-    `;
+    if (type === "url") {
+
+      const urlInput =
+        editor.querySelector(
+          ".web-url"
+        );
+
+      webUrl =
+        urlInput.value.trim();
+
+
+      if (!webUrl) {
+
+        alert(
+          "WebページのURLを入力してください。"
+        );
+
+        button.disabled = false;
+        button.textContent = "保存";
+
+        return;
+      }
+
+
+      if (
+        !/^https?:\/\//i.test(webUrl)
+      ) {
+
+        alert(
+          "URLは http:// または https:// から入力してください。"
+        );
+
+        button.disabled = false;
+        button.textContent = "保存";
+
+        return;
+      }
+
+
+      fileUrls = [];
+
+    }
+
+
+    /*
+      기존 Android / CMS와의 호환용 값
+
+      새 구조의 기준은 file_urls.
+      기존 컬럼은 당분간 유지.
+    */
+
+    let legacyContentUrl = null;
+    let legacyImageUrls = [];
+
+
+    if (type === "image") {
+
+      legacyImageUrls =
+        [...fileUrls];
+
+    }
+
+
+    if (
+      type === "video" ||
+      type === "pdf"
+    ) {
+
+      legacyContentUrl =
+        fileUrls[0] || null;
+
+    }
+
+
+    const payload = {
+
+      site_id: siteId,
+
+      menu_position: position,
+
+      menu_title: title,
+
+      content_type: type,
+
+      file_urls: fileUrls,
+
+      /*
+        구버전 호환
+      */
+      content_url:
+        legacyContentUrl,
+
+      image_urls:
+        legacyImageUrls,
+
+      web_url:
+        webUrl,
+
+      is_active: true,
+
+      updated_at:
+        new Date().toISOString()
+
+    };
+
+
+    const { error } =
+      await supabaseClient
+        .from("v4_content_menus")
+        .upsert(
+          payload,
+          {
+            onConflict:
+              "site_id,menu_position"
+          }
+        );
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    button.disabled = false;
+    button.textContent = "保存";
+
+
+    await loadContentForSelectedSite();
+
+
+    alert(
+      `MENU ${String(position).padStart(2, "0")} を保存しました。`
+    );
+
+
+  } catch (error) {
+
+    console.error(error);
+
+    button.disabled = false;
+    button.textContent = "保存";
+
+    alert(
+      "コンテンツの保存に失敗しました。\n" +
+      error.message
+    );
 
   }
 
@@ -1217,6 +1296,11 @@ async function loadContentForSelectedSite() {
           menu.image_urls || []
         );
 
+       editor.dataset.fileUrls =
+  JSON.stringify(
+    menu.file_urls || []
+  );
+       
       editor.dataset.webUrl =
         menu.web_url || "";
 
@@ -1230,245 +1314,390 @@ async function loadContentForSelectedSite() {
 }
 
 
-async function saveContentMenu(editor) {
-
-  const siteId =
-    contentSiteSelect.value;
-
-  if (!siteId) {
-
-    alert("対象現場を選択してください。");
-    return;
-
-  }
-
-  const position =
-    Number(editor.dataset.position);
-
-  const title =
-    editor
-      .querySelector(".menu-title")
-      .value
-      .trim();
+function renderContentInput(
+  editor,
+  menuData = null
+) {
 
   const type =
     editor
       .querySelector(".content-type")
       .value;
 
-  if (!title) {
-
-    alert("メニュー名を入力してください。");
-    return;
-
-  }
-
-  const button =
+  const area =
     editor.querySelector(
-      ".save-menu-button"
+      ".content-input-area"
     );
 
-  button.disabled = true;
-  button.textContent = "保存中...";
+  area.innerHTML = "";
 
 
-  try {
+  /* ========================================
+     IMAGE / VIDEO / PDF
+  ======================================== */
 
-    let contentUrl =
-      editor.dataset.contentUrl ||
-      null;
+  if (
+    type === "image" ||
+    type === "video" ||
+    type === "pdf"
+  ) {
 
-    let imageUrls = [];
-
-    try {
-      imageUrls =
-        JSON.parse(
-          editor.dataset.imageUrls ||
-          "[]"
-        );
-    } catch {
-      imageUrls = [];
-    }
-
-    let webUrl =
-      editor.dataset.webUrl ||
-      null;
-
-
-    /* IMAGE */
+    let accept = "";
+    let label = "";
 
     if (type === "image") {
+      accept = "image/*";
+      label = "画像";
+    }
 
-      const fileInput =
-        editor.querySelector(
-          ".content-files"
-        );
+    if (type === "video") {
+      accept = "video/*";
+      label = "動画ファイル";
+    }
 
-      const files =
-        Array.from(
-          fileInput?.files || []
-        );
+    if (type === "pdf") {
+      accept = "application/pdf";
+      label = "PDFファイル";
+    }
 
-      if (files.length > 5) {
 
-        alert(
-          "画像は最大5枚まで登録できます。"
-        );
+    /*
+      새 file_urls 우선 사용.
+      기존 데이터와의 호환도 유지.
+    */
 
-        button.disabled = false;
-        button.textContent = "保存";
+    let existingUrls = [];
+
+    if (
+      Array.isArray(menuData?.file_urls) &&
+      menuData.file_urls.length > 0
+    ) {
+
+      existingUrls =
+        [...menuData.file_urls];
+
+    } else if (
+      type === "image" &&
+      Array.isArray(menuData?.image_urls)
+    ) {
+
+      existingUrls =
+        [...menuData.image_urls];
+
+    } else if (
+      (type === "video" || type === "pdf") &&
+      menuData?.content_url
+    ) {
+
+      existingUrls = [
+        menuData.content_url
+      ];
+
+    }
+
+
+    /*
+      현재 유지할 파일을 editor에 저장
+    */
+
+    editor.dataset.fileUrls =
+      JSON.stringify(existingUrls);
+
+
+    area.innerHTML = `
+      <label style="margin-top:0;">
+        ${label}
+      </label>
+
+      <input
+        type="file"
+        class="content-files"
+        accept="${accept}"
+        multiple
+      >
+
+      <p style="
+        margin-top:8px;
+        color:#74879a;
+        font-size:12px;
+      ">
+        最大5ファイルまで登録できます。
+        1ファイルずつ追加することも、
+        複数ファイルをまとめて選択することもできます。
+      </p>
+
+      <div
+        class="registered-file-list"
+        style="
+          margin-top:12px;
+          display:flex;
+          flex-direction:column;
+          gap:8px;
+        "
+      ></div>
+    `;
+
+
+    const list =
+      area.querySelector(
+        ".registered-file-list"
+      );
+
+
+    function renderExistingFiles() {
+
+      let urls = [];
+
+      try {
+
+        urls =
+          JSON.parse(
+            editor.dataset.fileUrls ||
+            "[]"
+          );
+
+      } catch {
+
+        urls = [];
+
+      }
+
+
+      list.innerHTML = "";
+
+
+      if (urls.length === 0) {
+
+        list.innerHTML = `
+          <p style="
+            margin:0;
+            color:#9aabba;
+            font-size:12px;
+          ">
+            登録済みファイルはありません。
+          </p>
+        `;
 
         return;
       }
 
-      if (files.length > 0) {
 
-        imageUrls = [];
+      urls.forEach((url, index) => {
 
-        for (const file of files) {
+        const row =
+          document.createElement("div");
 
-          const url =
-            await uploadFile(
-              file,
-              `${siteId}/menu${position}/images`
+        row.style.cssText = `
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:10px;
+          padding:10px 12px;
+          background:#f4f8fb;
+          border:1px solid #dce7ef;
+          border-radius:8px;
+        `;
+
+
+        let previewHtml = "";
+
+        if (type === "image") {
+
+          previewHtml = `
+            <img
+              src="${escapeHtml(url)}"
+              alt=""
+              style="
+                width:54px;
+                height:40px;
+                object-fit:cover;
+                border-radius:5px;
+                flex-shrink:0;
+              "
+            >
+          `;
+
+        }
+
+
+        row.innerHTML = `
+          <div style="
+            display:flex;
+            align-items:center;
+            gap:10px;
+            min-width:0;
+          ">
+
+            ${previewHtml}
+
+            <span style="
+              font-size:12px;
+              color:#526779;
+              overflow:hidden;
+              text-overflow:ellipsis;
+              white-space:nowrap;
+            ">
+              登録済みファイル ${index + 1}
+            </span>
+
+          </div>
+
+          <button
+            type="button"
+            class="remove-existing-file"
+            data-index="${index}"
+            style="
+              border:1px solid #d8e1e8;
+              background:#fff;
+              border-radius:6px;
+              padding:5px 10px;
+              cursor:pointer;
+              flex-shrink:0;
+            "
+          >
+            削除
+          </button>
+        `;
+
+        list.appendChild(row);
+
+      });
+
+
+      list
+        .querySelectorAll(
+          ".remove-existing-file"
+        )
+        .forEach(button => {
+
+          button.addEventListener(
+            "click",
+            () => {
+
+              let current = [];
+
+              try {
+
+                current =
+                  JSON.parse(
+                    editor.dataset.fileUrls ||
+                    "[]"
+                  );
+
+              } catch {
+
+                current = [];
+
+              }
+
+              const index =
+                Number(
+                  button.dataset.index
+                );
+
+              current.splice(index, 1);
+
+              editor.dataset.fileUrls =
+                JSON.stringify(current);
+
+              renderExistingFiles();
+
+            }
+          );
+
+        });
+
+    }
+
+
+    renderExistingFiles();
+
+
+    /*
+      새로 선택하는 파일까지 합쳐
+      최대 5개인지 즉시 검사
+    */
+
+    const fileInput =
+      area.querySelector(
+        ".content-files"
+      );
+
+    fileInput.addEventListener(
+      "change",
+      () => {
+
+        let existing = [];
+
+        try {
+
+          existing =
+            JSON.parse(
+              editor.dataset.fileUrls ||
+              "[]"
             );
 
-          imageUrls.push(url);
+        } catch {
+
+          existing = [];
+
+        }
+
+        const selectedCount =
+          fileInput.files.length;
+
+        if (
+          existing.length +
+          selectedCount >
+          5
+        ) {
+
+          alert(
+            "1メニューにつき最大5ファイルまで登録できます。"
+          );
+
+          fileInput.value = "";
 
         }
 
       }
-
-      contentUrl = null;
-      webUrl = null;
-
-    }
-
-
-    /* VIDEO / PDF */
-
-    if (
-      type === "video" ||
-      type === "pdf"
-    ) {
-
-      const fileInput =
-        editor.querySelector(
-          ".content-file"
-        );
-
-      const file =
-        fileInput?.files[0];
-
-      if (file) {
-
-        contentUrl =
-          await uploadFile(
-            file,
-            `${siteId}/menu${position}/${type}`
-          );
-
-      }
-
-      imageUrls = [];
-      webUrl = null;
-
-    }
-
-
-    /* URL */
-
-    if (type === "url") {
-
-      const urlInput =
-        editor.querySelector(
-          ".web-url"
-        );
-
-      webUrl =
-        urlInput.value.trim();
-
-      if (!webUrl) {
-
-        alert(
-          "WebページのURLを入力してください。"
-        );
-
-        button.disabled = false;
-        button.textContent = "保存";
-
-        return;
-      }
-
-      if (
-        !/^https?:\/\//i.test(webUrl)
-      ) {
-
-        alert(
-          "URLは http:// または https:// から入力してください。"
-        );
-
-        button.disabled = false;
-        button.textContent = "保存";
-
-        return;
-      }
-
-      contentUrl = null;
-      imageUrls = [];
-
-    }
-
-
-    const payload = {
-      site_id: siteId,
-      menu_position: position,
-      menu_title: title,
-      content_type: type,
-      content_url: contentUrl,
-      image_urls: imageUrls,
-      web_url: webUrl,
-      is_active: true,
-      updated_at:
-        new Date().toISOString()
-    };
-
-
-    const { error } =
-      await supabaseClient
-        .from("v4_content_menus")
-        .upsert(
-          payload,
-          {
-            onConflict:
-              "site_id,menu_position"
-          }
-        );
-
-    if (error) {
-      throw error;
-    }
-
-    button.disabled = false;
-    button.textContent = "保存";
-
-    await loadContentForSelectedSite();
-
-    alert(
-      `MENU ${String(position).padStart(2, "0")} を保存しました。`
     );
 
-  } catch (error) {
 
-    console.error(error);
+    return;
+  }
 
-    button.disabled = false;
-    button.textContent = "保存";
 
-    alert(
-      "コンテンツの保存に失敗しました。\n" +
-      error.message
-    );
+  /* ========================================
+     URL
+  ======================================== */
+
+  if (type === "url") {
+
+    area.innerHTML = `
+      <label style="margin-top:0;">
+        Webページ URL
+      </label>
+
+      <input
+        type="url"
+        class="web-url"
+        placeholder="https://example.com"
+        value="${
+          escapeHtml(
+            menuData?.web_url || ""
+          )
+        }"
+      >
+
+      <p style="
+        margin-top:8px;
+        color:#74879a;
+        font-size:12px;
+      ">
+        サイネージではWebページとして表示されます。
+      </p>
+    `;
 
   }
 
