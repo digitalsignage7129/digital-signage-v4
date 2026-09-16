@@ -783,3 +783,187 @@ button {
     grid-template-columns: 1fr;
   }
 }
+
+/* =========================
+   CUSTOMER MANAGEMENT
+========================= */
+
+.customer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.customer-card {
+  background: #ffffff;
+  border: 1px solid #e5eaf2;
+  border-radius: 16px;
+  padding: 22px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+}
+
+.customer-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.customer-info h3 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  color: #172033;
+}
+
+.customer-email {
+  margin: 0 0 10px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.customer-sites {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.customer-site-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #eef5ff;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.customer-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #ecfdf3;
+  color: #15803d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.customer-status.inactive {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.customer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.customer-action-button {
+  border: 1px solid #dbe3ef;
+  background: #ffffff;
+  color: #334155;
+  border-radius: 9px;
+  padding: 9px 13px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.customer-action-button:hover {
+  background: #f8fafc;
+}
+
+.customer-action-button.danger {
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.customer-action-button.danger:hover {
+  background: #fef2f2;
+}
+
+/* 顧客作成・編集モーダル */
+
+.customer-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.48);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 2000;
+}
+
+.customer-modal {
+  width: min(620px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 28px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+}
+
+.customer-modal h2 {
+  margin: 0 0 22px;
+  color: #172033;
+}
+
+.customer-modal label {
+  display: block;
+  margin: 16px 0 7px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.customer-modal input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.customer-site-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 14px;
+  background: #f8fafc;
+  border-radius: 12px;
+}
+
+.customer-site-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.customer-site-option input {
+  width: auto;
+}
+
+.customer-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 26px;
+}
+
+@media (max-width: 800px) {
+  .customer-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .customer-actions {
+    justify-content: flex-start;
+  }
+}
+
