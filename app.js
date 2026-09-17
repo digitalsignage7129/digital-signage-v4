@@ -986,7 +986,18 @@ function setupContentEditors() {
       fileUrls = [];
     }
 
+let deletedFileUrls = [];
 
+try {
+  deletedFileUrls =
+    JSON.parse(
+      editor.dataset.deletedFileUrls ||
+      "[]"
+    );
+} catch {
+  deletedFileUrls = [];
+}
+     
     let webUrl =
       editor.dataset.webUrl ||
       null;
@@ -1183,7 +1194,44 @@ function setupContentEditors() {
       throw error;
     }
 
+// 保存 성공 후, 삭제 예정 파일을 Storage에서도 실제 삭제
+for (const url of deletedFileUrls) {
 
+  try {
+    const marker = `/storage/v1/object/public/${BUCKET_NAME}/`;
+    const markerIndex = url.indexOf(marker);
+
+    if (markerIndex === -1) {
+      console.warn("Storage path를 찾을 수 없음:", url);
+      continue;
+    }
+
+    const path =
+      decodeURIComponent(
+        url.substring(markerIndex + marker.length)
+      );
+
+    const { error: removeError } =
+      await supabaseClient
+        .storage
+        .from(BUCKET_NAME)
+        .remove([path]);
+
+    if (removeError) {
+      throw removeError;
+    }
+
+  } catch (removeError) {
+    console.error(
+      "Storage file delete error:",
+      removeError
+    );
+  }
+}
+
+// 삭제 완료 후 삭제 예정 목록 초기화
+editor.dataset.deletedFileUrls = "[]";
+     
     button.disabled = false;
     button.textContent = "保存";
 
@@ -1602,13 +1650,33 @@ function renderContentInput(
                   button.dataset.index
                 );
 
-              current.splice(index, 1);
+              const removedUrl = current[index];
 
-              editor.dataset.fileUrls =
-                JSON.stringify(current);
+let deleted = [];
 
-              renderExistingFiles();
+try {
+  deleted =
+    JSON.parse(
+      editor.dataset.deletedFileUrls ||
+      "[]"
+    );
+} catch {
+  deleted = [];
+}
 
+if (removedUrl && !deleted.includes(removedUrl)) {
+  deleted.push(removedUrl);
+}
+
+editor.dataset.deletedFileUrls =
+  JSON.stringify(deleted);
+
+current.splice(index, 1);
+
+editor.dataset.fileUrls =
+  JSON.stringify(current);
+
+renderExistingFiles();
             }
           );
 
